@@ -54,6 +54,8 @@ The key is to make sure **you always have the customer defined BEFORE YOU START 
 
 Here's an adapted example from how we're doing it in [T3 Chat](https://t3.chat).
 
+`/api/checkout/rotue.ts`
+
 ```ts
 export async function GET(req: Request) {
   const user = auth(req);
