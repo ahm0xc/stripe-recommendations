@@ -85,32 +85,65 @@ Here's an adapted example from how we're doing it in [T3 Chat](https://t3.chat).
 `/api/checkout/rotue.ts`
 
 ```ts
-export async function GET(req: Request) {
-  const user = auth(req);
+import { NextRequest, NextResponse } from "next/server";
 
-  // Get the stripeCustomerId from your KV store
-  let stripeCustomerId = await kv.get(`stripe:user:${user.id}`);
+import { auth, createClerkClient } from "@clerk/nextjs/server";
 
-  // Create a new Stripe customer if this user doesn't have one
+import { kv } from "~/lib/kv";
+import { stripe } from "~/lib/stripe";
+
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
+
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const priceId = searchParams.get("priceId");
+
+  if (!priceId) {
+    return NextResponse.json(
+      { error: "Price ID is required" },
+      { status: 400 }
+    );
+  }
+
+  const { userId } = await auth();
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const user = await clerkClient.users.getUser(userId);
+
+  let stripeCustomerId: string | null = (await kv.get(
+    `stripe:user:${userId}`
+  )) as string | null;
+
   if (!stripeCustomerId) {
     const newCustomer = await stripe.customers.create({
-      email: user.email,
-      metadata: {
-        userId: user.id, // DO NOT FORGET THIS
-      },
+      email:
+        user.primaryEmailAddress?.emailAddress ??
+        user.emailAddresses[0]?.emailAddress,
     });
 
-    // Store the relation between userId and stripeCustomerId in your KV
-    await kv.set(`stripe:user:${user.id}`, newCustomer.id);
+    await kv.set(`stripe:user:${userId}`, newCustomer.id);
     stripeCustomerId = newCustomer.id;
   }
 
-  // ALWAYS create a checkout with a stripeCustomerId. They should enforce this.
-  const checkout = await stripe.checkout.sessions.create({
+  const session = await stripe.checkout.sessions.create({
     customer: stripeCustomerId,
-    success_url: "https://t3.chat/success",
-    ...
+    mode: "subscription",
+    line_items: [{ price: priceId, quantity: 1 }],
+    // TODO: Add success and cancel URLs
+    metadata: {
+      userId,
+    },
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
   });
+
+  return NextResponse.json({ url: session.url });
+}
 ```
 
 ### syncStripeDataToKV
