@@ -60,6 +60,22 @@ npm i stripe
 bun add stripe
 ```
 
+now create a file in `lib/stripe.ts`
+
+```ts
+import Stripe from "stripe";
+
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY!;
+
+if (!STRIPE_SECRET_KEY) {
+  throw new Error("STRIPE_SECRET_KEY is not set");
+}
+
+export const stripe = new Stripe(STRIPE_SECRET_KEY, {
+  apiVersion: "2025-04-30.basil",
+});
+```
+
 ### Checkout flow
 
 The key is to make sure **you always have the customer defined BEFORE YOU START CHECKOUT**. The ephemerality of "customer" is a straight up design flaw and I have no idea why they built Stripe like this.
