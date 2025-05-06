@@ -48,6 +48,18 @@ This might seem like a lot. That's because it is. But it's also the simplest Str
 
 Let's go into the details on the important parts here.
 
+### Initialization
+
+install `stripe` package by 
+
+```sh
+pnpm add stripe
+# or
+npm i stripe
+# or
+bun add stripe
+```
+
 ### Checkout flow
 
 The key is to make sure **you always have the customer defined BEFORE YOU START CHECKOUT**. The ephemerality of "customer" is a straight up design flaw and I have no idea why they built Stripe like this.
